@@ -1,0 +1,896 @@
+---
+title: "Analyse der Flugdaten der Schweizer Armeedrohnen Ranger"
+author: "Angelo Zehr und Julian Schmidli"
+date: "Juli 2017"
+output:
+  html_document:
+    code_folding: hide
+    out.width: "100%"
+    fig.width: 9
+    fig.height: 3
+    warning: FALSE
+    message: FALSE
+    theme: simplex
+    toc: yes
+    toc_float: 
+      collapsed: false
+      smooth_scroll: false
+subtitle: Vorprozessierung und Analyse
+---
+
+## Vorbemerkungen
+
+Dieses Dokument beschreibt die Vorprozessierung und explorative Analyse des Datensatzes, der Grundlage des auf srf.ch veröffentlichten Artikel [Grenzwächter der Lüfte](http://www.srf.ch/news/grenzwaechter-der-luefte-2/) ist.
+
+SRF Data legt Wert darauf, dass die Datenvorprozessierung und -Analyse nachvollzogen und überprüft werden kann. SRF Data glaubt an das Prinzip offener Daten, aber auch offener und nachvollziehbarer Methoden. Zum anderen soll es Dritten ermöglicht werden, auf dieser Vorarbeit aufzubauen und damit weitere Auswertungen oder Applikationen zu generieren.
+
+Die Vorprozessierung und Analyse wurde im Statistikprogramm R vorgenommen. 
+
+Die Endprodukte des vorliegenden Scripts, neben der vorliegenden explorativen Analyse, sind (Datenbeschreibung siehe unten):
+
+* `flights.csv`: Die Flugdaten mit Timestamp, Geolocation, Flugzeugname und eindeutiger Flug-ID.
+* `hours.csv`, `weekdays.csv`, `days.csv`: Anzahl Flüge nach Uhrzeit, Wochentag und Datum. (z.T. unterteilt in Grenz- und Nicht-Grenzflüge)
+
+### R-Script & Daten
+
+Das zugrunde liegende Script sowie die prozessierten Daten können unter [diesem Link](https://srfdata.github.io/2017-07-drohnen/rscript.zip) heruntergeladen werden. Durch Ausführen von `main.Rmd` kann der hier beschriebene Prozess nachvollzogen und der für den Artikel verwendete Datensatz generiert werden. Dabei werden Daten aus dem Ordner `input` eingelesen und Ergebnisse in den Ordner `output` geschrieben. Verwendet wird die R Version `v3.4.1`. Wenn der Code nicht funktioniert, könnte es daran liegen, dass die installierte R Version eine ältere ist und deshalb aus Kompatibilitätsgründen ältere Packages installiert werden, als die von uns verwendeten. Manchmal hilft es, wenn ein Fehler auftritt, das Skript mehrmals auszuführen. Allenfalls müssen noch Third-Party-Libraries wie z.B. `libgdal` installiert werden.
+
+### GitHub
+
+Der Code für die vorliegende Datenprozessierung ist auf <https://github.com/srfdata/2017-07-drohnen> zur freien Verwendung verfügbar. 
+
+### Lizenz
+
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons Lizenzvertrag" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a><br /><span xmlns:dct="http://purl.org/dc/terms/" href="http://purl.org/dc/dcmitype/Dataset" property="dct:title" rel="dct:type">2017-07-drohnen</span> von <a xmlns:cc="http://creativecommons.org/ns#" href="https://github.com/srfdata/2017-07-drohnen" property="cc:attributionName" rel="cc:attributionURL">SRF Data</a> ist lizenziert unter einer <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Namensnennung - Weitergabe unter gleichen Bedingungen 4.0 International Lizenz</a>.
+
+### Weitere Projekte
+
+Code & Daten von [SRF Data](http://srf.ch/data) sind unter <http://srfdata.github.io> verfügbar.
+
+### Haftungsausschluss
+
+Die veröffentlichten Informationen sind sorgfältig zusammengestellt, erheben aber keinen Anspruch auf Aktualität, Vollständigkeit oder Richtigkeit. Es wird keine Haftung übernommen für Schäden, die  durch die Verwendung dieses Scripts oder der daraus gezogenen Informationen entstehen. Dies gilt ebenfalls für Inhalte Dritter, die über dieses Angebot zugänglich sind.
+
+### Datenbeschreibung 
+
+#### flights.csv
+
+Die Flugdaten, unterteilt in 4 Gruppen: 
+- `allFlights` beinhaltet alle relevanten Flugmesspunkte.
+- `borderFlights` beinhaltet die Flugmesspunkte jener Flüge, die an irgendeiner Stelle **näher als 10km an der Schweizer Grenze** sind.
+- `domesticFlights` beinhaltet die Flugmesspunkte jener Flüge, die an **keiner** Stelle näher als 10km an der Schweizer Grenze sind.
+- `irrelevantFlights` beinhaltet die irrelevanten Flüge, die weniger als 15 Minuten waren oder weniger als 40 Messpunkte enthalten.
+
+| Attribut | Typ | Beschreibung |
+|-------|------|-----------------------------------------------------------------------------|
+| Timestamp | Numeric | Unix-Timestamp des einzelnen Flugmesspunktes. |
+| altitude | Numeric | Altitude (Fuss über Meeresspiegel) des einzelnen Flugmesspunktes. |
+| heading | Numeric | Flugrichtung des einzelnen Flugmesspunktes. |
+| lat | Numeric | Geografische Breite des einzelnen Flugmesspunktes. |
+| long | Numeric | Geografische Länge des einzelnen Flugmesspunktes. |
+| radar_id | Numeric | Id der Messstation, die das Signal empfangen hat. |
+| squawk | Numeric | Broadcast-Code des Flugobjekts. |
+| File | String | Datei, in der der Flug abgespeichert war. |
+| flight | Numeric | Eindeutige ID eines Fluges. |
+| drone | String | Name des Flugobjekts. |
+| date | Datum | Datum und Uhrzeit des einzelnen Flugmesspunktes. |
+| distance | Numeric | Distanz des einzelnen Flugmesspunktes zum zuletzt gemessenen. |
+| seconds | Numeric | Anzahl Sekunden seit der letzten Messung. |
+| speed | Numeric | Distanz in Kilometer pro Stunde, berechnet aus distance und seconds. |
+| borderRegion | Bool | True/False: Befindet sich der Flugpunkt näher als 10 Kilometer an der Schweizer Grenze? |
+| borderFlight | Bool | True/False: Befindet sich irgend ein Flugpunkt dieses Fluges näher als 10 Kilometer an der Schweizer Grenze? |
+
+
+#### hours.csv
+
+| Attribut | Typ | Beschreibung |
+|-------|------|-----------------------------------------------------------------------------|
+| hour | String | Stunde des Tages (00-23) als Text mit vorangestellten Nullen. |
+| borderFlight | Bool | True/False: Befindet sich irgend ein Flugpunkt dieses Fluges näher als 10 Kilometer an der Schweizer Grenze? |
+| n | Numeric | Anzahl der Flüge zu dieser Stunde und in dieser Kategorie (Grenzflug oder nicht Grenzflug). |
+
+
+#### weekdays.csv
+
+| Attribut | Typ | Beschreibung |
+|-------|------|-----------------------------------------------------------------------------|
+| weekday | Numeric | Wochentag als Zahl (Montag 1 bis Sonntag 7). |
+| borderFlight | Bool | True/False: Befindet sich irgend ein Flugpunkt dieses Fluges näher als 10 Kilometer an der Schweizer Grenze? |
+| n | Numeric | Anzahl der Flüge an diesem Wochentag und in dieser Kategorie (Grenzflug oder nicht Grenzflug). |
+
+
+#### days.csv
+
+| Attribut | Typ | Beschreibung |
+|-------|------|-----------------------------------------------------------------------------|
+| date | Date | Datum |
+| n | Numeric | Anzahl der Flüge an diesem Tag (sowohl Grenz- als auch Nicht-Grenzflüge). |
+
+
+### Originalquelle
+
+Originalquelle der Flugdaten ist [Flightradar24.com](http://flightradar24.com). Die Daten zur Schweizer Landesgrenze wurden vom [Bundesamt für Statistik](https://www.bfs.admin.ch/bfs/de/home/dienstleistungen/geostat/geodaten-bundesstatistik/administrative-grenzen.html) bezogen, ein Höhenprofil der Schweiz von [CGIAR-CSI](http://srtm.csi.cgiar.org/SELECTION/inputCoord.asp) und eine Liste von Schweizer Schädten von [rueegger.me](https://rueegger.me/2008/06/15/schweizer-postleitzahlen-mit-koordinaten.html).
+
+
+## Vorbereitungen
+
+```{r, echo=FALSE}
+detachAllPackages <- function() {
+  basic.packages.blank <-  c("stats", "graphics", "grDevices", "utils", "datasets", "methods", "base")
+  basic.packages <- paste("package:", basic.packages.blank, sep = "")
+  
+  package.list <- search()[ifelse(unlist(gregexpr("package:", search())) == 1, TRUE, FALSE)]
+  
+  package.list <- setdiff(package.list, basic.packages)
+  
+  if (length(package.list) > 0)  for (package in package.list) {
+    detach(package, character.only = TRUE, unload = TRUE)
+    print(paste("package ", package, " detached", sep = ""))
+  }
+}
+
+detachAllPackages()
+
+rm(list=ls(all=TRUE)) 
+
+# Hier Arbeitsverzeichnis anpassen!
+path_to_wd <- switch(EXPR = system2("whoami", stdout = TRUE),
+                     "johndoe" = "~",
+                     NULL)
+if ( is.null(path_to_wd) )
+{
+  print("WARNING: No working directory specified for current user")
+} else
+{
+  setwd(path_to_wd)
+}
+```
+
+### Packages definieren
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+# von https://mran.revolutionanalytics.com/web/packages/checkpoint/vignettes/using-checkpoint-with-knitr.html
+cat("
+library(devtools)
+library(ggplot2)
+library(ggrepel)
+library(knitr)
+library(magrittr)
+library(RColorBrewer)
+library(raster)
+library(readr)
+library(rgeos)
+library(sp)
+library(rgdal)
+library(tidyr)
+library(dplyr)
+", 
+file = "manifest.R")
+package_date <- "2017-06-01"
+
+```
+
+### Packages installieren
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+if(!require(checkpoint)) {
+  if(!require(devtools)){
+    install.packages("devtools", repos = "http://cran.us.r-project.org")
+    require(devtools)
+  }
+  devtools::install_github("checkpoint", username = "RevolutionAnalytics", ref = "v0.3.2", repos = "http://cran.us.r-project.org")
+  require(checkpoint)
+}
+if(!dir.exists("~/.checkpoint")){
+  dir.create("~/.checkpoint")
+}
+checkpoint(snapshotDate = package_date, project = path_to_wd, verbose = T, scanForPackages = T, use.knitr = F)
+rm(package_date)
+```
+
+### Packages laden
+
+```{r}
+source("manifest.R")
+unlink("manifest.R")
+```
+
+# 1. Daten
+
+## 1.1 Daten laden
+
+```{r load data}
+
+start.time <- Sys.time()
+
+# function that reads all csvs in a folder and binds them together
+load_data <- function(folder) {
+  files <- dir(folder, pattern = '\\.csv', full.names = TRUE)
+  tables <- lapply(files, read_csv_filename)
+  do.call(rbind, tables)
+}
+
+# function that reads in the csv and creates a new column with the filename
+read_csv_filename <- function(filename){
+  ret <- read.csv(filename)
+  if( nrow(ret) > 0) {
+    ret$File <- filename
+    ret
+  }
+}
+
+# function that reads all csvs in a folder and binds them together
+load_csv_flight_data <- function(files) {
+  tables <- lapply(files, read_csv_filename)
+  do.call(rbind, tables)
+}
+
+# read in all csv files containing flight data
+subfolder <- "input/flightradar"
+flightList <- load_data(subfolder)
+
+# create new column with date only
+flightList %<>% mutate( date = substring( File, 19, 26 ))
+
+# read all csv flight data
+flights <- (load_csv_flight_data(paste0( subfolder, "/flights/", flightList$date, "_", flightList$flight_id, ".csv")))
+
+# create new column with flight id
+flights %<>% mutate( flight_id = as.integer( substring( File, 36, 44 )))
+
+# join reg (drone name)
+flights %<>% left_join( flightList %>% select( flight_id, reg ))
+
+# rename columns for further analysis
+flights %<>% rename( Timestamp = snapshot_id, drone = reg, long = longitude, lat = latitude, flight = flight_id )
+
+# convert date column to data type date
+flights$date <- as.POSIXct(flights$Timestamp, origin="1970-01-01", tz = "UTC")
+
+# convert to swiss timezone
+attr(flights$date, "tzone") <- "Europe/Zurich"
+
+# sort by drone and time
+flights %<>% arrange( drone, date ) %>% distinct( drone, date, .keep_all = TRUE )
+
+# clean up
+rm(subfolder, load_data, read_csv_filename)
+
+# output time taken
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+print(paste("Chunk executed in", round(time.taken), "seconds"))
+
+```
+
+
+## 1.2 Daten bereinigen
+
+### 1.2.1 SpatialDataFrame generieren
+
+```{r generate spatial data frame}
+
+start.time <- Sys.time()
+
+flightsBackup <- flights
+
+generateSpatial <- function( dataFrame ) {
+  # create two dimensional num vector for coordinates to convert to spatial
+  coords <- cbind( long = as.numeric( dataFrame$long ), lat = as.numeric( dataFrame$lat ))
+  
+  # create new spatial data frame with lat and long coordinates
+  return(SpatialPointsDataFrame( coords, data = dataFrame, proj4string = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")))
+  
+  # clean up
+  rm( coords )
+}
+
+# output time taken
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+print(paste("Chunk executed in", round(time.taken), "seconds"))
+
+```
+
+
+### 1.2.2 Glitches (offensichtlich falsche Koordinaten) anhand zu hoher Geschwindigkeit herausfiltern
+
+```{r remove glitches over 250kmh}
+
+start.time <- Sys.time()
+
+# repeat process until all glitches are removed
+removedGlitches <- 1
+
+while(removedGlitches > 0) {
+
+  # generate new spatial points data frame
+  spatialFlights <- generateSpatial(flights)
+  
+  # delete columns for second calculation
+  flights$distance <- NULL
+  flights$seconds <- NULL
+  flights$speed <- NULL
+  
+  # calculate distances between each lat long coordinates
+  distances <- spDists(spatialFlights, segments = TRUE, longlat = TRUE)
+  
+  # add zero to beginning of list
+  distances <- as.data.frame(c(0, distances))
+  
+  # bind as new column to flights
+  flights %<>% bind_cols( distances )
+  
+  # rename new column
+  names(flights)[ncol(flights)] <- 'distance'
+  
+  # calculate seconds to last entry
+  flights %<>%
+    group_by(drone, flight) %>%
+    mutate(seconds = Timestamp - lag(Timestamp, default = Timestamp[1]))
+  
+  # set distance and seconds of first entry of each flight to zero
+  flights %<>% 
+    group_by( drone, flight ) %>%
+    mutate(distance = replace(distance, Timestamp == min(Timestamp), 0)) %>%
+    mutate(seconds = replace(seconds, Timestamp == min(Timestamp), 0)) %>%
+    mutate(speed = distance / (seconds/3600)) %>%
+    ungroup()
+  
+  # replace NaN with 0
+  flights[is.nan(flights$speed), ]$speed <- 0
+  
+  # filter out coordinates with unrealistic hich speed. max speed is 220 km/h. We filter everthing above 250 km/h
+  newFlights <- flights %>% filter( speed < 250 )
+  
+  removedGlitches <- (nrow(flights)-nrow(newFlights))
+  
+  flights <- newFlights
+
+}
+
+# filter out points blow 45.73 (pretty deep down in italy) degrees because they look like errors
+flights %<>% filter(lat >= 45.734)
+
+# output
+print(paste((nrow(flightsBackup) - nrow(flights)), "data points were removed.", nrow(flights), "remaining."))
+
+# clean up
+rm( distances, newFlights )
+
+# output time taken
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+print(paste("Chunk executed in", round(time.taken), "seconds"))
+
+```
+
+
+### 1.2.3 Zu kurze Flüge herausfiltern
+
+```{r filter out irrelevant flights}
+
+start.time <- Sys.time()
+
+# see how many entries there are per file
+entries <- flights %>% group_by( drone, flight ) %>% tally( sort = TRUE )
+
+# group by flight and calculate duration
+durations <- flights %>%
+  select( drone, flight, Timestamp ) %>%
+  group_by( flight )  %>%
+  arrange( Timestamp ) %>%
+  slice(c(1, n())) %>%
+  mutate(minmax = c("min", "max")) %>%
+  gather(var, val, Timestamp) %>%
+  unite(key, minmax, var) %>%
+  spread(key, val) %>% 
+  mutate( duration = max_Timestamp - min_Timestamp ) %>%
+  select( drone, flight, duration ) %>%
+  arrange( desc(duration) )
+
+# list strangely short flights
+irrelevantIDs <- merge( entries, durations, by = c("drone", "flight")) %>% filter( duration < 900 | n < 40 )
+
+# output
+print( paste(nrow(irrelevantIDs), "will be filtered out because they are either shorter than 15 minutes or contain less than 40 gps positions"))
+
+# filter irrelevant flights out
+irrelevantFlights <- inner_join( flights, irrelevantIDs, by = c("drone", "flight"))
+
+# write irrelevant files to csv for further analisys in qgis
+write.csv(irrelevantFlights, file = "output/irrelevantFlights.csv")
+
+# override flights with relevant flights only
+flights <- anti_join( flights, irrelevantIDs, by = c("drone", "flight"))
+
+# output
+print( paste(nrow(flights %>% group_by( flight )  %>% tally()), "flights are left"))
+
+# clean up
+rm( irrelevantIDs, irrelevantFlights )
+
+# output time taken
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+print(paste("Chunk executed in", round(time.taken), "seconds"))
+
+```
+
+
+### 1.2.4 Flüge, die Nahe der Grenze stattfinden von restlichen (Inlandflügen) trennen
+
+```{r distinguish between domestic and border flights}
+
+start.time <- Sys.time()
+
+# refresh spatialDataFrame of Flights (because some entries were filtered out)
+spatialFlights <- generateSpatial(flights)
+
+# define number of kilometers that count as border region (either 5 or 10 available)
+km <- 5
+
+# read in shapefile for region close to border
+borderRegion <- readOGR( dsn = paste0("input/geodata/g1l16_", km, "km.shp"))
+borderRegion@data$borderRegion = TRUE
+
+# calculate if point is near the border or not
+booleans <- over( spatialFlights, borderRegion )
+booleans %<>% select( borderRegion )
+booleans[is.na(booleans)] <- FALSE
+
+# join data frames
+flights %<>% bind_cols( as.data.frame(booleans))
+
+# clean up
+rm( booleans, borderRegion )
+
+# add info if is border or domestic flight also to flight data frame
+flights %<>% 
+  group_by( drone, flight ) %>%
+  mutate(borderFlight = max(borderRegion) > 0) %>% 
+  ungroup()
+
+# create new data frame for flights near the border
+borderFlightIDs <- flights %>% 
+  group_by( drone, flight ) %>% 
+  filter( borderFlight ) %>%
+  ungroup() %>% 
+  distinct( drone, flight )
+
+# separate flights near the border and domestic flights
+borderFlights <- right_join( flights, borderFlightIDs, by = c("drone", "flight"))
+domesticFlights <- anti_join( flights, borderFlightIDs, by = c("drone", "flight"))
+
+# output
+print( paste(nrow(borderFlights %>% group_by(drone, flight) %>% tally()), "flights are being operated closer than", km, "km to the swiss border"))
+print( paste(nrow(domesticFlights %>% group_by(drone, flight) %>% tally()), "flights are being operated in the country itself"))
+
+# write both groups to seperate csvs
+write.csv(borderFlights, file="output/borderFlights.csv")
+write.csv(domesticFlights, file="output/domesticFlights.csv")
+
+# write csv with all flights
+write.csv( flights, file = "output/allFlights.csv" )
+
+# clean up
+rm( km )
+
+# output time taken
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+print(paste("Chunk executed in", round(time.taken), "seconds"))
+
+```
+
+
+# 2. Analyse
+
+## 1. Zeit-Muster
+
+### 1.a. Um welche Uhrzeit über den Tag hinweg wird am meisten geflogen? In welcher Stunde? 
+
+Pro Stunde angezeigt werden die Flugzeuge in der Luft. Fliegt ein Flughzeug von 19:55 bis 20:05 ist es bei den Stunden 19 und 20 je ein Mal aufgeführt.
+
+```{r 1.a., fig.width=8, fig.height=3}
+
+hours <- flights %>%
+  group_by( hour = strftime( date, format="%H" ), drone, flight, borderFlight ) %>%
+  tally() %>%
+  select( -n ) %>%
+  ungroup()
+
+hours %<>%
+  group_by( hour, borderFlight ) %>%
+  arrange( hour ) %>%
+  tally()
+
+# fill up with zeros
+zeros <- as.data.frame( list( hour = formatC( seq(0, 23), 1, flag="0")))
+
+# merge is a bit complicated because both borderFlight true and false have to filled up with zeros
+border <- hours %>% 
+  filter( borderFlight ) %>% 
+  right_join( zeros ) %>% 
+  mutate( borderFlight = ifelse( is.na( borderFlight ), TRUE, borderFlight ))
+domestic <- hours %>% 
+  filter( !borderFlight ) %>% 
+  right_join( zeros ) %>% 
+  mutate( borderFlight = ifelse( is.na( borderFlight ), FALSE, borderFlight ))
+hours <- bind_rows(border, domestic)
+
+# replace NAs with 0
+border[ is.na(border$n), ]$n <- 0
+domestic[ is.na(domestic$n), ]$n <- 0
+hours[ is.na(hours$n), ]$n <- 0
+
+write.csv(hours, file = "output/hours.csv")
+
+# clean up
+rm(zeros, border, domestic)
+
+# plot date bar chart
+ggplot(hours, aes(x = hour, y = n )) + 
+  geom_bar( aes(fill = borderFlight), 
+            stat="identity",
+            position="dodge") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set1")
+
+```
+
+### 1.b. In welchen Wochen gibt es wie viele Einsätze?
+
+In den folgenden Auswertungen wird lediglich der Startzeitpunkt eines Flugs betrachtet. Startet eine Drohne um 23:55 und fliegt sie bis 01:00 so wird sie trotzdem dem Vortag zugerechnet.
+
+```{r 1.b., fig.width=13, fig.height=3}
+
+weeks <- flights %>%
+  group_by( drone, flight, borderFlight ) %>%
+  summarise( start = min( date )) %>%
+  arrange( start ) %>%
+  group_by( week = strftime( start, format="%y-%V" ), drone, flight, borderFlight ) %>%
+  tally() %>%
+  select( -n )
+
+weeks %<>%
+  group_by( week, borderFlight ) %>%
+  tally()
+
+# fill up with zeros
+zeros <- as.data.frame( list( week = format( seq( from = as.Date( head(weeks$week, n = 1 ), format = '%y-%V' ), to = as.Date( tail(weeks$week, n = 1 ), format = '%y-%V' ), 'weeks' ), format = '%y-%V' )))
+
+# merge is a bit complicated because both borderFlight true and false have to filled up with zeros
+border <- weeks %>% filter( borderFlight ) %>% right_join( zeros ) %>% mutate( borderFlight = ifelse( is.na( borderFlight ), TRUE, borderFlight ))
+domestic <- weeks %>% filter( !borderFlight ) %>% right_join( zeros ) %>% mutate( borderFlight = ifelse( is.na( borderFlight ), FALSE, borderFlight ))
+weeks <- bind_rows(border, domestic)
+
+# replace NAs with 0
+weeks[ is.na(weeks$n), ]$n <- 0
+
+# clean up
+rm(zeros, border, domestic)
+
+# plot date bar chart
+ggplot(weeks, aes(x = week, y = n )) + 
+  geom_bar( aes(fill = borderFlight), 
+            stat="identity",
+            position="dodge") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set1") +
+  theme(axis.text.x=element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+### 1.c. In welchen Monaten?
+
+```{r 1.c.}
+
+months <- flights %>%
+  group_by( drone, flight, borderFlight ) %>%
+  summarise( start = min(date)) %>%
+  arrange( start ) %>%
+  group_by( month = strftime( start, format="%y-%m" ), drone, flight, borderFlight ) %>%
+  tally() %>%
+  select( -n )
+
+months %<>%
+  group_by( month, borderFlight ) %>%
+  tally()
+
+# fill up with zeros
+zeros <- as.data.frame( list( month = format( seq( from = as.Date( paste0( head( months$month, n = 1 ), "-01"), format = '%y-%m-%d' ), to = as.Date( paste0( tail( months$month, n = 1 ), "-01"), format = '%y-%m-%d' ), 'months' ), format = '%y-%m' )))
+
+# merge is a bit complicated because both borderFlight true and false have to filled up with zeros
+border <- months %>% filter( borderFlight ) %>% right_join( zeros ) %>% mutate( borderFlight = ifelse( is.na( borderFlight ), TRUE, borderFlight ))
+domestic <- months %>% filter( !borderFlight ) %>% right_join( zeros ) %>% mutate( borderFlight = ifelse( is.na( borderFlight ), FALSE, borderFlight ))
+months <- bind_rows(border, domestic)
+
+# replace NAs with 0
+months[ is.na(months$n), ]$n <- 0
+
+# clean up
+rm(zeros, border, domestic)
+
+# plot date bar chart
+ggplot(months, aes(x = month, y = n )) + 
+  geom_bar( aes(fill = borderFlight), 
+            stat="identity",
+            position="dodge") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set1") +
+  theme(axis.text.x=element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+### 1.d. An welchen Wochentagen gibt es wie viele Einsätze?
+
+```{r 1.d.}
+
+weekdays <- flights %>%
+  group_by( drone, flight, borderFlight ) %>%
+  summarise( start = min(date)) %>%
+  arrange( start ) %>%
+  group_by( weekday = strftime( start, format="%u" ), drone, flight, borderFlight ) %>%
+  tally() %>%
+  select( -n )
+
+weekdays %<>%
+  group_by( weekday, borderFlight ) %>%
+  tally()
+
+# fill up with zeros
+zeros <- as.data.frame(list(weekday = as.character(seq(1, 7))))
+
+# merge is a bit complicated because both borderFlight true and false have to filled up with zeros
+border <- weekdays %>% filter( borderFlight ) %>% right_join( zeros ) %>% mutate( borderFlight = ifelse( is.na( borderFlight ), TRUE, borderFlight ))
+domestic <- weekdays %>% filter( !borderFlight ) %>% right_join( zeros ) %>% mutate( borderFlight = ifelse( is.na( borderFlight ), FALSE, borderFlight ))
+weekdays <- bind_rows(border, domestic)
+
+# replace NAs with 0
+weekdays[ is.na(weekdays$n), ]$n <- 0
+
+# export
+write.csv(weekdays, file = "output/weekdays.csv")
+
+# clean up
+rm(zeros)
+
+# plot date bar chart
+ggplot(weekdays, aes(x = weekday, y = n )) + 
+  geom_bar( aes(fill = borderFlight), 
+            stat="identity",
+            position="dodge") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set1")
+
+```
+
+### 1.e. Wie oft wird an Wochenenden geflogen?
+
+```{r 1.e.}
+
+print(paste("Am Samstag wurde", weekdays[weekdays$weekday == "6", ]$n, "Mal gestartet, am Sonntag", weekdays[weekdays$weekday == "7", ]$n, "Mal"))
+
+```
+
+### 1.f. Wie lange wird durchschnittlich geflogen?
+
+```{r 1.f.}
+
+print(paste("Der Median der Flugdauer beträgt ca.", round(median(durations$duration)/60), "Minuten"))
+
+print(paste("Der Durchschnitt ca.", round(mean(durations$duration)/60), "Minuten"))
+
+```
+
+### 1.g. Was war der längste Einsatz?
+
+```{r 1.g.}
+
+longest <- head(durations %>% arrange(desc(duration)), 1)
+
+print(paste("Der längste Einsatz war Flug", longest$flight, "von der Drohne", longest$drone, "- er war", round(longest$duration/60), "Minuten"))
+
+```
+
+
+### 1.h. An welchen Tagen des Jahres?
+
+```{r 1.h., fig.width=12, fig.height=2}
+
+days <- flights %>%
+  group_by( drone, flight ) %>%
+  summarise( start = min(date)) %>%
+  group_by( day = strftime( start, format = '%Y-%m-%d' ), drone, flight) %>%
+  tally() %>%
+  select( -n )
+
+days %<>%
+  group_by( day ) %>%
+  tally()
+
+# fill up with zeros
+zeros <- as.data.frame( seq( from = min(flights$date), to = max(flights$date), 'days' ))
+
+# rename column for merging
+names(zeros)[1] <- 'day'
+
+# add column for weekday
+zeros$weekday <- strftime( zeros$day, format = '%u')
+zeros$week <- strftime( zeros$day, format = '%V')
+
+# convert to string for merging
+zeros$day <- strftime( zeros$day, format = '%Y-%m-%d' )
+
+# merge
+days <- right_join( days, zeros )
+
+# replace NAs with 0
+days[ is.na(days$n), ]$n <- 0
+
+# write to csv
+write.csv(days %>% rename( count = n, date = day ) %>% select(date, count), file = "output/days.csv")
+
+# clean up
+rm(zeros)
+
+# plot date bar chart
+ggplot(data = days, aes(x = week, y = weekday, fill = n)) +
+  geom_tile(color = "white", size = 0.4) +
+  scale_fill_distiller(palette = "Spectral")
+
+```
+
+## 2. Regionale Muster
+
+### 2.a. Wann ist der Stichtag, an dem der Trend von Ost-Grenze zu Süd-Grenze shiftet?
+
+Sidenote: Am 18. März 2016 (1458255600), hatten sich die EU-Länder und die Türkei auf ein Abkommen geeinigt.
+
+```{r 2.a.}
+
+meanBorderFlights <- borderFlights %>%
+  group_by(drone, flight) %>%
+  summarise(start = min(date), latMean = mean(as.numeric(lat)), longMean = mean(as.numeric(long))) %>%
+  mutate(Tessin = latMean < 46.25) %>%
+  ungroup()
+
+ggplot(meanBorderFlights, aes(x = start, fill = Tessin)) +
+  labs(x = "Datum des Flugstarts", y = "Anzahl Flüge") +
+  geom_histogram(bins = 60) +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set1") +
+  geom_vline(xintercept = 1458255600) +
+  annotate("text", label = "18. März 2016 (Türkei-Deal)", x = as.POSIXct('2016-03-18'), y = 15, hjust = -0.05, size = 4)
+
+# output
+print(paste(sum(meanBorderFlights$Tessin), "von", nrow(meanBorderFlights), "Flügen waren im Tessin"))
+
+```
+
+Bis Anfang Juli wird vor allem im Norden des Landes geflogen. Ab Juli vor allem im Süden. Im August allerdings auch nochmal im Norden.
+Zum Vergleich: Vor fast einem Jahr, am 18. März 2016, hatten sich die EU-Länder und die Türkei auf ein Abkommen geeinigt.
+
+
+## 3. Technische Muster
+
+### 3.a. Auf welcher Höhe (altitude) wird durchschnittlich geflogen? Was war die höchste gemessene Höhe?
+
+```{r 3.a.}
+
+print(paste("Der Median der Flughöhe beträgt", median(borderFlights[!is.na(borderFlights$altitude), ]$altitude), "und der Durchschnitt", round(mean(borderFlights[!is.na(borderFlights$altitude), ]$altitude))))
+print("Angegeben bei der Flughöhe ist die Altitude - also Höhe über Meeresspiegel, allerdings in Fuss")
+
+print(paste("Der höchste gemessene Punkt war auf", max(borderFlights$altitude), "was wie ein Messfehler wirkt"))
+
+```
+
+### 3.b. Wie schnell (Speed) wird durchschnittlich geflogen? Was war die höchste gemessene Geschwindigkeit?
+
+```{r 3.b.}
+
+print(paste("Der Median der Geschwindigkeit beträgt", round(median(borderFlights[borderFlights$speed > 0, ]$speed)), "und der Durchschnitt", round(mean(borderFlights[borderFlights$speed > 0, ]$speed))))
+
+print(paste("Die höchste gemessene Geschwindigkeit war", round(max(borderFlights$speed)), "was damit zusammenhängt, dass alle Punkte mit einer Geschwindigkeit über 250 km/h weggefiltert werden, weil es sich zu einem grossen Teil um Messfehler/Ausreisser handelt"))
+
+```
+
+
+## 4. Allgemeine Facts
+
+### 4.a. Welche Daten liegen vor?
+
+```{r 4.a.}
+
+print( paste("Von", min(flights$date), "bis", max(flights$date), "sind", nrow(flights %>% distinct(flight)), "Flüge registriert"))
+print( paste("Davon waren", nrow(borderFlightIDs), "Flüge grenznah - haben also einen Flugpunkt, der näher als 5km zur Schweizer Grenze liegt"))
+
+```
+
+### 4.b. Wie viele Minuten waren die Drohnen insgesamt in der Luft? Im Jahr 2016?
+
+```{r 4.b.}
+
+totalHours <- round(sum(durations$duration)/3600)
+
+print( paste("Insgesamt waren die Drohnen rund", totalHours, "Stunden in der Luft"))
+
+```
+
+### 4.c. Total Kosten der Drohnen-Flüge für alle Daten, wenn die Stunde 7300 CHF kostet? Fürs Jahr 2016?
+
+```{r 4.c.}
+
+print( paste("Bei einem Preis von CHF 7300 pro Stunde ergibt das Gesamtkosten in Höhe von CHF", format( totalHours*7300, big.mark = "'")))
+print( paste("Das macht pro Flug im Schnitt CHF", format( totalHours*7300 / nrow(flights %>% distinct(flight)), big.mark = "'")))
+
+```
+
+## 5. Flughöhe
+
+### 5.a. Wo flogen die Drohnen wie hoch?
+
+```{r 5., fig.width=12, fig.height=7}
+
+# read in geoTIF of srtm90 data <http://srtm.csi.cgiar.org/SELECTION/inputCoord.asp>
+srtm_38_03 <- raster('input/geodata/srtm_38_03/srtm_38_03.tif')
+srtm_39_03 <- raster('input/geodata/srtm_39_03/srtm_39_03.tif')
+
+# merge two squares together but in this case this is not necessary 
+# 3903 is only a small part of Graubünden where no data points are, so it can be left out
+raster <- srtm_38_03 # otherwise we would write here: merge(srtm_38_03, srtm_39_03)
+
+# clean up
+rm(srtm_38_03, srtm_39_03)
+
+# calculate ground level (meters above sea level M.ü.M. for each long/lat data point)
+ground <- raster::extract(raster, spatialFlights)
+
+# transform for merging
+ground <- as.data.frame(c(ground))
+
+# rename new column
+names(ground)[1] <- 'groundlevel'
+
+# bind together
+flights %<>% bind_cols(ground)
+
+# convert altitude from feet to meters
+# according to wikipedia the ranger drone can only fly up to 4500 meters so we filter out mismeasurements > 5000 m
+# filter out data points with meters above ground is smaller than zero
+flights %<>% mutate(altitude = altitude * 0.3048) %>%
+  mutate(aboveGround = altitude - groundlevel) %>% 
+  filter(aboveGround > 0, aboveGround < 5000)
+
+# output
+print(paste((nrow(spatialFlights) - nrow(flights)), "Datenpunkte wurden entfernt, weil sie eine unrealistische Flughöhe beinhalten"))
+
+# read in list of 20 swiss cities to plot
+cities <- read.csv('input/geodata/staedte.csv', stringsAsFactors = FALSE)
+
+# arrange that low flight levels (dark red) are visible
+ggplot(flights %>% arrange(desc(aboveGround)), aes(x = long, y = lat)) + 
+  geom_point(aes(col = aboveGround), size = 0.5) +
+  theme_minimal() +
+  scale_colour_distiller(palette = "Spectral", direction = 1, limits = c(0, 4500)) +
+  labs(col = "Meter über Boden") +
+  geom_point(data = cities, shape = 3, size = 1) +
+  geom_text_repel(data = cities, label = cities$Name, size = 3)
+
+```
+
+### 5.a Wie hoch flogen die Drohnen durchschnittlich im Inland und an den Grenzregionen?
+
+```{r 5.1}
+
+# calculat new column seconds by substracting the start Timestamp from each data point
+ggplot(flights %>% group_by(flight) %>% mutate(seconds = Timestamp - min(Timestamp)), aes(x = seconds, y = aboveGround, col = aboveGround, group = flight)) + 
+  geom_line(alpha = 0.25) +
+  theme_minimal() +
+  scale_colour_distiller(palette = "Spectral", direction = 1, limits = c(0, 4500)) +
+  geom_smooth(aes(group = borderFlight, fill = borderFlight), show.legend = TRUE, linetype = "dashed", col = "black") +
+  labs(y = "Meter über Boden", x = "Flugsekunden", col = "M.ü.B.", fill = "Grenzflug") + 
+  coord_fixed(ratio = 1.2)
+
+```

@@ -1,0 +1,4 @@
+flight_id,aircraft_id,reg,equip,callsign,flight,schd_from,schd_to,real_to,reserved
+195094428,4947960,D114,ZZZZ,D114,D114,BXO,BXO,BXO,
+195120689,4947950,D124,ZZZZ,D124,D124,BXO,,,
+195043429,4947942,D132,ZZZZ,D132,D132,BXO,,,

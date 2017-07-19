@@ -1,0 +1,4 @@
+flight_id,aircraft_id,reg,equip,callsign,flight,schd_from,schd_to,real_to,reserved
+123580168,4947961,D113,ZZZZ,SUI13,D113,ZRH,,,
+123431667,4947954,D120,,D120,D120,ZRH,,,
+123593921,4947948,D126,ZZZZ,SUI26,D126,,,,

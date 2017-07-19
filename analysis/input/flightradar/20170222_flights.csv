@@ -1,0 +1,4 @@
+flight_id,aircraft_id,reg,equip,callsign,flight,schd_from,schd_to,real_to,reserved
+210301936,4947961,D113,ZZZZ,D113,D113,ZRH,BXO,BXO,
+210298025,4947950,D124,ZZZZ,D124,D124,BXO,BXO,BXO,
+210330136,4947948,D126,ZZZZ,D126,D126,BXO,ZRH,ZRH,

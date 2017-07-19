@@ -1,0 +1,4 @@
+flight_id,aircraft_id,reg,equip,callsign,flight,schd_from,schd_to,real_to,reserved
+211786383,4947940,D134,UAV,D134,D134,BXO,BXO,BXO,
+211816211,4947947,D127,ZZZZ,D127,D127,BXO,BXO,BXO,
+211790292,4947940,D134,UAV,D134,D134,BXO,BXO,BXO,

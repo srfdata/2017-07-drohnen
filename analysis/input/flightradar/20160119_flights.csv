@@ -1,0 +1,5 @@
+flight_id,aircraft_id,reg,equip,callsign,flight,schd_from,schd_to,real_to,reserved
+144001415,4947951,D123,ZZZZ,D123,D123,,,,
+143830434,4947951,D123,ZZZZ,D123,D123,,,,
+143990537,4947954,D120,ZZZZ,D120,D120,LUG,,,
+143985011,4947954,D120,ZZZZ,D120,D120,,,,
