@@ -33,7 +33,7 @@ Die Endprodukte des vorliegenden Scripts, neben der vorliegenden explorativen An
 
 ### R-Script & Daten
 
-Das zugrunde liegende Script sowie die prozessierten Daten können unter [diesem Link](https://srfdata.github.io/2017-07-drohnen/rscript.zip) heruntergeladen werden. Durch Ausführen von `main.Rmd` kann der hier beschriebene Prozess nachvollzogen und der für den Artikel verwendete Datensatz generiert werden. Dabei werden Daten aus dem Ordner `input` eingelesen und Ergebnisse in den Ordner `output` geschrieben. Verwendet wird die R Version `v3.4.1`. Wenn der Code nicht funktioniert, könnte es daran liegen, dass die installierte R Version eine ältere ist und deshalb aus Kompatibilitätsgründen ältere Packages installiert werden, als die von uns verwendeten. Manchmal hilft es, wenn ein Fehler auftritt, das Skript mehrmals auszuführen. Allenfalls müssen noch Third-Party-Libraries wie z.B. `libgdal` installiert werden.
+Das zugrundeliegende Script sowie die prozessierten Daten können unter [diesem Link](https://srfdata.github.io/2017-07-drohnen/rscript.zip) heruntergeladen werden. Durch Ausführen von `main.Rmd` kann der hier beschriebene Prozess nachvollzogen und der für den Artikel verwendete Datensatz generiert werden. Dabei werden Daten aus dem Ordner `input` eingelesen und Ergebnisse in den Ordner `output` geschrieben. Verwendet wird die R Version `v3.4.1`. Wenn der Code nicht funktioniert, könnte es daran liegen, dass die installierte R Version eine ältere ist und deshalb aus Kompatibilitätsgründen ältere Packages installiert werden, als die von uns verwendeten. Manchmal hilft es, wenn ein Fehler auftritt, das Skript mehrmals auszuführen. Allenfalls müssen noch Third-Party-Libraries wie z.B. `libgdal` installiert werden.
 
 ### GitHub
 
@@ -57,8 +57,8 @@ Die veröffentlichten Informationen sind sorgfältig zusammengestellt, erheben a
 
 Die Flugdaten, unterteilt in 4 Gruppen: 
 - `allFlights` beinhaltet alle relevanten Flugmesspunkte.
-- `borderFlights` beinhaltet die Flugmesspunkte jener Flüge, die an irgendeiner Stelle **näher als 10km an der Schweizer Grenze** sind.
-- `domesticFlights` beinhaltet die Flugmesspunkte jener Flüge, die an **keiner** Stelle näher als 10km an der Schweizer Grenze sind.
+- `borderFlights` beinhaltet die Flugmesspunkte jener Flüge, die an irgendeiner Stelle **näher als 5km an der Schweizer Grenze** sind.
+- `domesticFlights` beinhaltet die Flugmesspunkte jener Flüge, die an **keiner** Stelle näher als 5km an der Schweizer Grenze sind.
 - `irrelevantFlights` beinhaltet die irrelevanten Flüge, die weniger als 15 Minuten waren oder weniger als 40 Messpunkte enthalten.
 
 | Attribut | Typ | Beschreibung |
@@ -77,8 +77,8 @@ Die Flugdaten, unterteilt in 4 Gruppen:
 | distance | Numeric | Distanz des einzelnen Flugmesspunktes zum zuletzt gemessenen. |
 | seconds | Numeric | Anzahl Sekunden seit der letzten Messung. |
 | speed | Numeric | Distanz in Kilometer pro Stunde, berechnet aus distance und seconds. |
-| borderRegion | Bool | True/False: Befindet sich der Flugpunkt näher als 10 Kilometer an der Schweizer Grenze? |
-| borderFlight | Bool | True/False: Befindet sich irgend ein Flugpunkt dieses Fluges näher als 10 Kilometer an der Schweizer Grenze? |
+| borderRegion | Bool | True/False: Befindet sich der Flugpunkt näher als 5 Kilometer an der Schweizer Grenze? |
+| borderFlight | Bool | True/False: Befindet sich irgend ein Flugpunkt dieses Fluges näher als 5 Kilometer an der Schweizer Grenze? |
 
 
 #### hours.csv
@@ -86,7 +86,7 @@ Die Flugdaten, unterteilt in 4 Gruppen:
 | Attribut | Typ | Beschreibung |
 |-------|------|-----------------------------------------------------------------------------|
 | hour | String | Stunde des Tages (00-23) als Text mit vorangestellten Nullen. |
-| borderFlight | Bool | True/False: Befindet sich irgend ein Flugpunkt dieses Fluges näher als 10 Kilometer an der Schweizer Grenze? |
+| borderFlight | Bool | True/False: Befindet sich irgend ein Flugpunkt dieses Fluges näher als 5 Kilometer an der Schweizer Grenze? |
 | n | Numeric | Anzahl der Flüge zu dieser Stunde und in dieser Kategorie (Grenzflug oder nicht Grenzflug). |
 
 
@@ -95,7 +95,7 @@ Die Flugdaten, unterteilt in 4 Gruppen:
 | Attribut | Typ | Beschreibung |
 |-------|------|-----------------------------------------------------------------------------|
 | weekday | Numeric | Wochentag als Zahl (Montag 1 bis Sonntag 7). |
-| borderFlight | Bool | True/False: Befindet sich irgend ein Flugpunkt dieses Fluges näher als 10 Kilometer an der Schweizer Grenze? |
+| borderFlight | Bool | True/False: Befindet sich irgend ein Flugpunkt dieses Fluges näher als 5 Kilometer an der Schweizer Grenze? |
 | n | Numeric | Anzahl der Flüge an diesem Wochentag und in dieser Kategorie (Grenzflug oder nicht Grenzflug). |
 
 
@@ -109,12 +109,12 @@ Die Flugdaten, unterteilt in 4 Gruppen:
 
 ### Originalquelle
 
-Originalquelle der Flugdaten ist [Flightradar24.com](http://flightradar24.com). Die Daten zur Schweizer Landesgrenze wurden vom [Bundesamt für Statistik](https://www.bfs.admin.ch/bfs/de/home/dienstleistungen/geostat/geodaten-bundesstatistik/administrative-grenzen.html) bezogen, ein Höhenprofil der Schweiz von [CGIAR-CSI](http://srtm.csi.cgiar.org/SELECTION/inputCoord.asp) und eine Liste von Schweizer Schädten von [rueegger.me](https://rueegger.me/2008/06/15/schweizer-postleitzahlen-mit-koordinaten.html).
+Originalquelle der Flugdaten ist [Flightradar24.com](http://flightradar24.com). Die Daten zur Schweizer Landesgrenze wurden vom [Bundesamt für Statistik](https://www.bfs.admin.ch/bfs/de/home/dienstleistungen/geostat/geodaten-bundesstatistik/administrative-grenzen.html) bezogen, ein Höhenprofil der Schweiz von [CGIAR-CSI](http://srtm.csi.cgiar.org/SELECTION/inputCoord.asp) und eine Liste von Schweizer Städten von [rueegger.me](https://rueegger.me/2008/06/15/schweizer-postleitzahlen-mit-koordinaten.html).
 
 
 ## Vorbereitungen
 
-```{r, echo=FALSE}
+```{r preparations, echo=FALSE}
 detachAllPackages <- function() {
   basic.packages.blank <-  c("stats", "graphics", "grDevices", "utils", "datasets", "methods", "base")
   basic.packages <- paste("package:", basic.packages.blank, sep = "")
@@ -148,7 +148,7 @@ if ( is.null(path_to_wd) )
 
 ### Packages definieren
 
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
+```{r define packages, echo=TRUE, message=FALSE, warning=FALSE}
 # von https://mran.revolutionanalytics.com/web/packages/checkpoint/vignettes/using-checkpoint-with-knitr.html
 cat("
 library(devtools)
@@ -172,7 +172,7 @@ package_date <- "2017-06-01"
 
 ### Packages installieren
 
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
+```{r install packages, echo=TRUE, message=FALSE, warning=FALSE}
 if(!require(checkpoint)) {
   if(!require(devtools)){
     install.packages("devtools", repos = "http://cran.us.r-project.org")
@@ -190,7 +190,7 @@ rm(package_date)
 
 ### Packages laden
 
-```{r}
+```{r load packages}
 source("manifest.R")
 unlink("manifest.R")
 ```
@@ -418,7 +418,7 @@ print(paste("Chunk executed in", round(time.taken), "seconds"))
 ```
 
 
-### 1.2.4 Flüge, die Nahe der Grenze stattfinden von restlichen (Inlandflügen) trennen
+### 1.2.4 Flüge, die nahe der Grenze stattfinden von restlichen (Inlandflügen) trennen
 
 ```{r distinguish between domestic and border flights}
 
@@ -490,7 +490,7 @@ print(paste("Chunk executed in", round(time.taken), "seconds"))
 
 ### 1.a. Um welche Uhrzeit über den Tag hinweg wird am meisten geflogen? In welcher Stunde? 
 
-Pro Stunde angezeigt werden die Flugzeuge in der Luft. Fliegt ein Flughzeug von 19:55 bis 20:05 ist es bei den Stunden 19 und 20 je ein Mal aufgeführt.
+Pro Stunde angezeigt werden die Flugzeuge in der Luft. Fliegt ein Flugzeug von 19:55 bis 20:05 ist es bei den Stunden 19 und 20 je ein Mal aufgeführt.
 
 ```{r 1.a., fig.width=8, fig.height=3}
 
