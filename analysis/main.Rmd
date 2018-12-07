@@ -4,20 +4,32 @@ author: "Angelo Zehr und Julian Schmidli"
 date: "Juli 2017"
 output:
   html_document:
-    code_folding: hide
-    out.width: "100%"
-    fig.width: 9
-    fig.height: 3
+    code_folding: show
+    echo: TRUE
     warning: FALSE
     message: FALSE
     theme: simplex
+    df_print: kable
     toc: yes
+    toc_depth: 4
     toc_float: 
       collapsed: false
       smooth_scroll: false
 subtitle: Vorprozessierung und Analyse
 ---
 
+```{r, echo=FALSE}
+# CONFIG
+user_name <- "srfdata" # github user name
+project_name <- "2017-07-drohnen" # adapt to new repo name
+package_date <- "2017-06-01" # date of the CRAN snapshot that
+# the checkpoint package uses
+R_version <- "3.4.4" # R-Version to use
+options(Ncpus = 4) # use 4 cores for parallelized installation of packages
+if (R_version != paste0(version$major, ".", version$minor)){
+  stop("ERROR: specified R version does not match currently used.")
+}
+```
 ## Vorbemerkungen
 
 Dieses Dokument beschreibt die Vorprozessierung und explorative Analyse des Datensatzes, der Grundlage des auf srf.ch veröffentlichten Artikel [Grenzwächter der Lüfte](http://www.srf.ch/news/grenzwaechter-der-luefte-2/) ist.
@@ -33,7 +45,11 @@ Die Endprodukte des vorliegenden Scripts, neben der vorliegenden explorativen An
 
 ### R-Script & Daten
 
-Das zugrundeliegende Script sowie die prozessierten Daten können unter [diesem Link](https://srfdata.github.io/2017-07-drohnen/rscript.zip) heruntergeladen werden. Durch Ausführen von `main.Rmd` kann der hier beschriebene Prozess nachvollzogen und der für den Artikel verwendete Datensatz generiert werden. Dabei werden Daten aus dem Ordner `input` eingelesen und Ergebnisse in den Ordner `output` geschrieben. Verwendet wird die R Version `v3.4.1`. Wenn der Code nicht funktioniert, könnte es daran liegen, dass die installierte R Version eine ältere ist und deshalb aus Kompatibilitätsgründen ältere Packages installiert werden, als die von uns verwendeten. Manchmal hilft es, wenn ein Fehler auftritt, das Skript mehrmals auszuführen. Allenfalls müssen noch Third-Party-Libraries wie z.B. `libgdal` installiert werden.
+Die Vorprozessierung und Analyse wurde im Statistikprogramm R vorgenommen. Das zugrunde liegende Script sowie die prozessierten Daten können unter [diesem Link](https://srfdata.github.io/`r project_name`/rscript.zip) heruntergeladen werden. Durch Ausführen von `main.Rmd` kann der hier beschriebene Prozess nachvollzogen und der für den Artikel verwendete Datensatz generiert werden. Dabei werden Daten aus dem Ordner `input` eingelesen und Ergebnisse in den Ordner `output` geschrieben. 
+
+SRF Data verwendet das [rddj-template](https://github.com/grssnbchr/rddj-template) von Timo Grossenbacher als Grundlage für seine R-Scripts.  Entstehen bei der Ausführung dieses Scripts Probleme, kann es helfen, die Anleitung von [rddj-template](https://github.com/grssnbchr/rddj-template) zu studieren. 
+
+Debug-Informationen: *This report was generated on `r Sys.time()`. R version: `r paste0(version$major, ".", version$minor)` on `r version$platform`. For this report, CRAN packages as of `r package_date` were used.*
 
 ### GitHub
 
@@ -115,34 +131,49 @@ Originalquelle der Flugdaten ist [Flightradar24.com](http://flightradar24.com). 
 ## Vorbereitungen
 
 ```{r preparations, echo=FALSE}
-detachAllPackages <- function() {
-  basic.packages.blank <-  c("stats", "graphics", "grDevices", "utils", "datasets", "methods", "base")
-  basic.packages <- paste("package:", basic.packages.blank, sep = "")
-  
-  package.list <- search()[ifelse(unlist(gregexpr("package:", search())) == 1, TRUE, FALSE)]
-  
-  package.list <- setdiff(package.list, basic.packages)
-  
-  if (length(package.list) > 0)  for (package in package.list) {
+detach_all_packages <- function() {
+  basic_packages_blank <-  c("stats",
+                             "graphics",
+                             "grDevices",
+                             "utils",
+                             "datasets",
+                             "methods",
+                             "base")
+  basic_packages <- paste("package:", basic_packages_blank, sep = "")
+
+  package_list <- search()[
+    ifelse(unlist(gregexpr("package:", search())) == 1, TRUE, FALSE)]
+
+  package_list <- setdiff(package_list, basic_packages)
+
+  if (length(package_list) > 0)  for (package in package_list) {
     detach(package, character.only = TRUE, unload = TRUE)
     print(paste("package ", package, " detached", sep = ""))
   }
 }
 
-detachAllPackages()
+detach_all_packages()
 
-rm(list=ls(all=TRUE)) 
-
-# Hier Arbeitsverzeichnis anpassen!
-path_to_wd <- switch(EXPR = system2("whoami", stdout = TRUE),
-                     "johndoe" = "~",
-                     NULL)
-if ( is.null(path_to_wd) )
-{
+# this allows multiple persons to use the same RMarkdown
+# without adjusting the working directory by themselves all the time
+source("scripts/csf.R")
+path_to_wd <- csf() # if this - for some reason - does not work,
+# replace with a hardcoded path, like so: "~/projects/rddj-template/analysis/"
+if ( is.null(path_to_wd) | !dir.exists(path_to_wd)) {
   print("WARNING: No working directory specified for current user")
-} else
-{
+} else {
   setwd(path_to_wd)
+}
+
+# suppress scientific notation
+options(scipen = 999)
+
+# unload global rstudioapi and knitr again to avoid conflicts with checkpoint
+# this is only necessary if executed within RStudio
+# outside of RStudio, namely in the knit.sh script, this causes RMarkdown
+# rendering to fail, thus should not be executed there
+if (Sys.getenv("RSTUDIO") == "1"){
+  detach_all_packages()
 }
 ```
 
@@ -166,25 +197,37 @@ library(tidyr)
 library(dplyr)
 ", 
 file = "manifest.R")
-package_date <- "2017-06-01"
-
 ```
 
 ### Packages installieren
 
 ```{r install packages, echo=TRUE, message=FALSE, warning=FALSE}
-if(!require(checkpoint)) {
-  if(!require(devtools)){
+# if checkpoint is not yet installed, install it (for people using this
+# system for the first time)
+if (!require(checkpoint)) {
+  if (!require(devtools)) {
     install.packages("devtools", repos = "http://cran.us.r-project.org")
     require(devtools)
   }
-  devtools::install_github("checkpoint", username = "RevolutionAnalytics", ref = "v0.3.2", repos = "http://cran.us.r-project.org")
+  devtools::install_github("RevolutionAnalytics/checkpoint",
+                           ref = "v0.3.2", # could be adapted later,
+                           # as of now (beginning of July 2017
+                           # this is the current release on CRAN)
+                           repos = "http://cran.us.r-project.org")
   require(checkpoint)
 }
-if(!dir.exists("~/.checkpoint")){
+# nolint start
+if (!dir.exists("~/.checkpoint")) {
   dir.create("~/.checkpoint")
 }
-checkpoint(snapshotDate = package_date, project = path_to_wd, verbose = T, scanForPackages = T, use.knitr = F)
+# nolint end
+# install packages for the specified CRAN snapshot date
+checkpoint(snapshotDate = package_date,
+           project = path_to_wd,
+           verbose = T,
+           scanForPackages = T,
+           use.knitr = F,
+           R.version = R_version)
 rm(package_date)
 ```
 
@@ -193,6 +236,7 @@ rm(package_date)
 ```{r load packages}
 source("manifest.R")
 unlink("manifest.R")
+sessionInfo()
 ```
 
 # 1. Daten
